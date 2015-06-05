@@ -536,6 +536,19 @@ declare class Promise<R> implements Promise.Thenable<R>, Promise.Inspection<R> {
 	 */
 	// variadic array with promises of value
 	static join<R>(...values: Promise.Thenable<R>[]): Promise<R[]>;
+
+	static join<A1, A2>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>): Promise<[A1, A2]>;
+	static join<A1, A2, R>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, callback: (arg1: A1, arg2: A2) => Promise<R>): Promise<R>;
+
+	static join<A1, A2, A3>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, arg3: Promise.Thenable<A3>): Promise<[A1, A2, A3]>;
+	static join<A1, A2, A3, R>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, arg3: Promise.Thenable<A3>, callback: (arg1: A1, arg2: A2, arg3: A3) => Promise<R>): Promise<R>;
+
+	static join<A1, A2, A3, A4>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, arg3: Promise.Thenable<A3>, arg4: Promise.Thenable<A4>): Promise<[A1, A2, A3, A4]>;
+	static join<A1, A2, A3, A4, R>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, arg3: Promise.Thenable<A3>, arg4: Promise.Thenable<A4>, callback: (arg1: A1, arg2: A2, arg3: A3, arg4: A4) => Promise<R>): Promise<R>;
+
+	static join<A1, A2, A3, A4, A5>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, arg3: Promise.Thenable<A3>, arg4: Promise.Thenable<A4>, arg5: Promise.Thenable<A5>): Promise<[A1, A2, A3, A4, A5]>;
+	static join<A1, A2, A3, A4, A5, R>(arg1: Promise.Thenable<A1>, arg2: Promise.Thenable<A2>, arg3: Promise.Thenable<A3>, arg4: Promise.Thenable<A4>, arg5: Promise.Thenable<A5>, callback: (arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5) => Promise<R>): Promise<R>;
+
 	// variadic array with values
 	static join<R>(...values: R[]): Promise<R[]>;
 

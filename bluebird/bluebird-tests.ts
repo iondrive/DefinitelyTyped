@@ -98,6 +98,11 @@ var anyArrProm: Promise<any[]>;
 var fooArrProm: Promise<Foo[]>;
 var barArrProm: Promise<Bar[]>;
 
+var fooBarArrProm: Promise<[Foo, Bar]>;
+var fooBarNumArrProm: Promise<[Foo, Bar, number]>;
+var fooBarNumStrArrProm: Promise<[Foo, Bar, number, string]>;
+var fooBarNumStrBoolArrProm: Promise<[Foo, Bar, number, string, boolean]>;
+
 // - - - - - - - - - - - - - - - - -
 
 var numArrThen: Promise.Thenable<number[]>;
@@ -687,6 +692,24 @@ fooArrProm = Promise.some(fooArr, num);
 
 fooArrProm = Promise.join(foo, foo, foo);
 fooArrProm = Promise.join(fooThen, fooThen, fooThen);
+
+fooBarArrProm = Promise.join(fooThen, barThen);
+fooBarNumArrProm = Promise.join(fooThen, barThen, numThen);
+fooBarNumStrArrProm = Promise.join(fooThen, barThen, numThen, strThen);
+fooBarNumStrBoolArrProm = Promise.join(fooThen, barThen, numThen, strThen, boolThen);
+
+numProm = Promise.join(fooThen, barThen, function (foo, bar) {
+	return Promise.resolve(1);
+});
+numProm = Promise.join(fooThen, barThen, numThen, function (foo: Foo, bar: Bar, num: number) {
+	return Promise.resolve(1);
+});
+numProm = Promise.join(fooThen, barThen, numThen, strThen, function (foo: Foo, bar: Bar, num: number, str: string) {
+	return Promise.resolve(1);
+});
+numProm = Promise.join(fooThen, barThen, numThen, strThen, boolThen, function (foo: Foo, bar: Bar, num: number, str: string, bool: boolean) {
+	return Promise.resolve(1);
+});
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
