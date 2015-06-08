@@ -1,149 +1,418 @@
-// Type definitions for kue 0.9.x
-// Project: https://github.com/Automattic/kue
-// Definitions by: Nicholas Penree <http://github.com/drudge>
-// Definitions: https://github.com/borisyankov/DefinitelyTyped
-
-/// <reference path="../node/node.d.ts" />
-/// <reference path="../redis/redis.d.ts" />
 /// <reference path="../express/express.d.ts" />
+/// <reference path="../redis/redis.d.ts" />
 
-declare module "kue" {
-  import events = require('events');
+declare module 'kue' {
   import express = require('express');
   import redis = require('redis');
 
-  export class Queue extends events.EventEmitter {
-    name: string;
+  module kue {
+    interface QueueOptions {
+      prefix?: string;
+      redis?: string | {
+        socket?: string;
+        port?: number;
+        host?: string;
+        auth?: string;
+        db?: number;
+        options?: redis.ClientOpts;
+        createClientFactory?: () => any;
+      };
+      jobEvents?: boolean;
+      disableSearch?: boolean;
+    }
+
+    interface ErrBack {
+      (err?: any): void;
+    }
+
+    interface Context {
+      pause(milliseconds: number, callback?: ErrBack): void;
+      resume(): void;
+    }
+
+    interface ProcessFunction<T, R> {
+      (job: Job<T>, done: (err: any, result?: R) => void): void;
+      (job: Job<T>, ctx: Context, done: (err: any, result?: R) => void): void;
+    }
+
+    interface BackoffOptions {
+      delay?: number;
+      type?: string;
+    }
+
+    interface BackoffFunction {
+      (attempts: number, delay: number): number;
+    }
+  }
+
+  class Job<T> {
     id: string;
-    promoter: any;
-    workers: Worker[];
-    shuttingDown: boolean;
-    client: redis.RedisClient;
-    testMode: TestMode;
+    data: T;
+    result: any;
 
-    static singleton: Queue;
+    /**
+     * Initialize a new `Job` with the given `type` and `data`.
+     */
+    constructor(type: string, data: T);
 
-    constructor(options: Object);
-    create(type: string, data: Object): Job;
-    createJob(type: string, data: Object): Job;
-    promote(ms?: number): void;
-    setupTimer(): void;
-    checkJobPromotion(ms: number): void;
-    checkActiveJobTtl(ttlOptions: Object): void;
-    watchStuckJobs(ms: number): void;
-    setting(name: string, fn: Function): Queue;
-    process(type: string, n?: number, fn?: Function): void;
-    shutdown(timeout: number, type: string, fn: Function): Queue;
-    types(fn: Function): Queue;
-    state(string: string, fn: Function): Queue;
-    workTime(fn: Function): Queue;
-    cardByType(type: string, state: string, fn: Function): Queue;
-    card(state: string, fn: Function): Queue;
-    complete(fn: Function): Queue;
-    failed(fn: Function): Queue;
-    inactive(fn: Function): Queue;
-    active(fn: Function): Queue;
-    delayed(fn: Function): Queue;
-    completeCount(type: string, fn: Function): Queue;
-    failedCount(type: string, fn: Function): Queue;
-    inactiveCount(type: string, fn: Function): Queue;
-    activeCount(type: string, fn: Function): Queue;
-    delayedCount(type: string, fn: Function): Queue;
-  }
+    on(event: string, callback: (...args: any[]) => void): Job<T>;
 
-  interface Priorities {
-    low: number;
-    normal: number;
-    medium: number;
-    high: number;
-    critical: number;
-  }
+    /**
+     * Return JSON-friendly object.
+     */
+    toJSON(): string;
 
-  export class Job extends events.EventEmitter {
-    public id: number;
-    public type: string;
-    public data: any;
-    public client: redis.RedisClient;
-    private _max_attempts;
+    /**
+     * Log `str` with sprintf-style variable args.
+     *
+     * Examples:
+     *
+     *    job.log('preparing attachments');
+     *    job.log('sending email to %s at %s', user.name, user.email);
+     *
+     * Specifiers:
+     *
+     *   - %s : string
+     *   - %d : integer
+     */
+    log(str: string, ...args: any[]): Job<T>;
 
-    static priorities: Priorities;
+    /**
+     * Set job `key` to `val`.
+     */
+    set(key: string, val: string, callback?: (err: any) => void): Job<T>;
+
+    /**
+     * Get job `key`
+     */
+    get(key: string, callback?: (err: any, val: string) => void): Job<T>;
+
+    /**
+     * Set the job progress by telling the job
+     * how `complete` it is relative to `total`.
+     * data can be used to pass extra data to job subscribers
+     */
+    progress(complete: number, total: number, data?: any): Job<T>;
+    progress(complete: number, data?: any): Job<T>;
+    progress(): number;
+
+    /**
+     * Set the job delay in `ms`.
+     */
+    delay(ms: number): Job<T>;
+    delay(): number;
+
+    removeOnComplete(flag: boolean): Job<T>;
+    removeOnComplete(): boolean;
+
+    backoff(flag: boolean): Job<T>;
+    backoff(options: kue.BackoffOptions): Job<T>;
+    backoff(fn: kue.BackoffFunction): Job<T>;
+    backoff(): boolean | kue.BackoffOptions | kue.BackoffFunction;
+
+    ttl(ms: number): Job<T>;
+
+    /**
+     * Set or get the priority `level`, which is one
+     * of "low", "normal", "medium", and "high", or
+     * a number in the range of -10..10.
+     */
+    priority(level: string): Job<T>;
+    priority(): string;
+
+    /**
+     * Increment attempts, invoking callback `fn(remaining, attempts, max)`.
+     */
+    attempt(fn: (err: any, remaining: number, attempts: number, max: number) => void): Job<T>;
+
+    /**
+     * Set max attempts to `n`.
+     */
+    attempts(n: number): Job<T>;
+
+    searchKeys(keys: string[]): Job<T>;
+    searchKeys(keys: string): Job<T>;
+    searchKeys(): string[];
+
+    /**
+     * Remove the job and callback `fn(err)`.
+     */
+    remove(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Set state to `state`.
+     */
+    state(state: string, fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Set the job's failure `err`.
+     */
+    error(err: Error): Job<T>;
+
+    /**
+     * Set state to "complete", and progress to 100%.
+     */
+    complete(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Set state to "failed".
+     */
+    failed(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Set state to "inactive".
+     */
+    inactive(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Set state to "active".
+     */
+    active(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Set state to "delayed".
+     */
+    delayed(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Save the job, optionally invoking the callback `fn(err)`.
+     */
+    save(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Update the job and callback `fn(err)`.
+     */
+    update(fn?: kue.ErrBack): Job<T>;
+
+    /**
+     * Subscribe this job for event mapping.
+     */
+    update(fn?: kue.ErrBack): Job<T>;
+
     static disableSearch: boolean;
+
     static jobEvents: boolean;
-    static get(id: number, fn: Function): void;
-    static remove(id: number, fn?: Function): void;
-    static removeBadJob(id: number): void;
-    static log(id: number, fn: Function): void;
-    static range(from: number, to: number, order: string, fn: Function): void;
-    static rangeByState(state: string, from: number, to: number, order: string, fn: Function): void;
-    static rangeByType(type: string, state: string, from: number, to: number, order: string, fn: Function): void;
 
-    constructor(type: string, data?: any);
-    toJSON(): Object;
-    log(str: string): Job;
-    set(key: string, val: string, fn?: Function): Job;
-    get(key: string, fn?: Function): Job;
-    progress(complete: number, total: number, data?: any): Job;
-    delay(ms:number|Date): Job;
-    removeOnComplete(param: any): void;
-    backoff(param: any): void;
-    ttl(param: any): void;
-    private _getBackoffImpl(): void;
-    priority(level: string|number): Job;
-    attempt(fn: Function): Job;
-    reattempt(attempt: number, fn?: Function): void;
-    attempts(n: number): Job;
-    searchKeys(keys: string[]|string): Job;
-    remove(fn?: Function): Job;
-    state(state: string, fn?: Function): Job;
-    error(err: Error): Job;
-    complete(fn?: Function): Job;
-    failed(fn?: Function): Job;
-    inactive(fn?: Function): Job;
-    active(fn?: Function): Job;
-    delayed(fn?: Function): Job;
-    save(fn?: Function): Job;
-    update(fn?: Function): Job;
-    subscribe(fn?: Function): Job;
+    /**
+     * Default job priority map.
+     */
+    static priorities: { [priority: string]: number };
+
+    /**
+     * Get with the range `from`..`to` and invoke callback `fn(err, jobs)`.
+     */
+    static range<T>(from: number, to: number, order: string, fn: (err: any, jobs: Job<T>[]) => void): void;
+
+    /**
+     * Get jobs of `state`, with the range `from`..`to` and invoke callback `fn(err, jobs)`.
+     */
+    static rangeByState<T>(state: string, from: number, to: number, order: string, fn: (err: any, jobs: Job<T>[]) => void): void;
+
+
+    /**
+     * Get jobs of `type` and `state`, with the range `from`..`to` and invoke callback `fn(err, jobs)`.
+     */
+    static rangeByType<T>(type: string, state: string, from: number, to: number, order: string, fn: (err: any, jobs: Job<T>[]) => void): void;
+
+    /**
+     * Get job with `id` and callback `fn(err, job)`.
+     */
+    static get<T>(id: string, fn: (err: any, job: Job<T>) => void): void;
+
+    /**
+     * Remove job `id` if it exists and invoke callback `fn(err)`.
+     */
+    static remove(id: string, fn: kue.ErrBack): void;
+
+    /**
+     * Get log for job `id` and callback `fn(err, log)`.
+     */
+    static log(id: string, fn: (err: any, log: string[]) => void): void;
   }
 
-  class Worker extends events.EventEmitter {
-    queue: Queue;
-    type: string;
-    client: redis.RedisClient;
-    job: Job;
+  class Queue {
+    /**
+     * Initialize a new job `Queue`.
+     */
+    constructor(options?: kue.QueueOptions);
 
-    constructor(queue: Queue, type: string);
-    start(fn: Function): Worker;
-    error(err: Error, job: Job): Worker;
-    failed(job: Job, theErr: Object, fn?: Function): Worker;
-    process(job: Job, fn: Function): Worker;
-    private zpop(key: string, fn: Function): void;
-    private getJob(fn: Function): void;
-    idle(): Worker;
-    shutdown(timeout: number, fn: Function): void;
-    emitJobEvent(event: Object, job: Job, arg1: any, arg2: any): void;
-    resume(): boolean;
+    /**
+     * Create a `Job` with the given `type` and `data`.
+     */
+    create<T>(type: string, data?: any): Job<T>;
+    createJob<T>(type: string, data?: any): Job<T>;
+
+    /**
+     * Proxy to auto-subscribe to events.
+     */
+    on(event: string, callback: (...args: any[]) => void): Queue;
+
+    /**
+     * Runs a LUA script to diff inactive jobs ZSET cardinality
+     * and helper pop LIST length each `ms` milliseconds and syncs helper LIST.
+     */
+    watchStuckJobs(ms?: number): void;
+
+    /**
+     * Get setting `name` and invoke `fn(err, res)`.
+     */
+    setting(name: string, fn: (err: any, res: string) => void): Queue;
+
+    /**
+     * Process jobs with the given `type`, invoking `fn(job)`.
+     */
+    process<T>(type: string, concurrency: number, fn: (job: Job<T>, callback: kue.ErrBack) => void): void;
+    process<T>(type: string, concurrency: number, fn: (job: Job<T>, ctx: kue.Context, callback: kue.ErrBack) => void): void;
+    process<T>(type: string, fn: (job: Job<T>, callback: kue.ErrBack) => void): void;
+    process<T>(type: string, fn: (job: Job<T>, ctx: kue.Context, callback: kue.ErrBack) => void): void;
+
+    /**
+     * Graceful shutdown
+     */
+    shutdown(timeout: number, type: string, callback: kue.ErrBack): Queue;
+    shutdown(timeout: number, callback: kue.ErrBack): Queue;
+    shutdown(callback: kue.ErrBack): Queue;
+
+    /**
+     * Get the job types present and callback `fn(err, types)`.
+     */
+    types(fn: (err: any, types: string[]) => void): Queue;
+
+    /**
+     * Return job ids with the given `state`, and callback `fn(err, ids)`.
+     */
+    state(state: string, fn: (err: any, ids: string[]) => void): Queue;
+
+    /**
+     * Get queue work time in milliseconds and invoke `fn(err, ms)`.
+     */
+    workTime(dn: (err: any, ms: number) => void): Queue;
+
+    /**
+     * Get cardinality of jobs with given `state` and `type` and callback `fn(err, n)`.
+     */
+    cardByType(type: string, state: string, fn: (err: any, n: number) => void): Queue;
+
+    /**
+     * Get cardinality of `state` and callback `fn(err, n)`.
+     */
+    card(state: string, fn: (err: any, n: number) => void): Queue;
+
+    /**
+     * Completed jobs.
+     */
+    complete(fn: (err: any, ids: string[]) => void): Queue;
+
+    /**
+     * Failed jobs.
+     */
+    failed(fn: (err: any, ids: string[]) => void): Queue;
+
+    /**
+     * Inactive jobs (queued).
+     */
+    inactive(fn: (err: any, ids: string[]) => void): Queue;
+
+    /**
+     * Active jobs (mid-process).
+     */
+    active(fn: (err: any, ids: string[]) => void): Queue;
+
+    /**
+     * Delayed jobs.
+     */
+    delayed(fn: (err: any, ids: string[]) => void): Queue;
+
+    /**
+     * Completed jobs of type `type` count.
+     */
+    completeCount(type: string, fn: (err: any, n: number) => void): Queue;
+    completeCount(fn: (err: any, n: number) => void): Queue;
+
+    /**
+     * Failed jobs of type `type` count.
+     */
+    failedCount(type: string, fn: (err: any, n: number) => void): void;
+    failedCount(fn: (err: any, n: number) => void): void;
+
+    /**
+     * Inactive jobs (queued) of type `type` count.
+     */
+    inactiveCount(type: string, fn: (err: any, n: number) => void): void;
+    inactiveCount(fn: (err: any, n: number) => void): void;
+
+    /**
+     * Active jobs (mid-process) of type `type` count.
+     */
+    activeCount(type: string, fn: (err: any, n: number) => void): void;
+    activeCount(fn: (err: any, n: number) => void): void;
+
+    /**
+     * Delayed jobs of type `type` count.
+     */
+    delayedCount(type: string, fn: (err: any, n: number) => void): void;
+    delayedCount(fn: (err: any, n: number) => void): void;
+
+    /**
+     * Test mode for convenience in test suites
+     */
+    testMode: {
+      /**
+       *   Array of jobs added to the queue
+       */
+      jobs: Job<any>[],
+
+      /**
+       *   Enable test mode.
+       */
+      enter(): void;
+
+      /**
+       *   Disable test mode.
+       */
+      exit(): void;
+
+      /**
+       *   Clear the array of queued jobs
+       */
+      clear(): void;
+    };
+
+    /**
+     * Library version.
+     */
+    static version: string;
+
+    /**
+     * Expose `Job`.
+     */
+    static Job: typeof Job;
+
+    /**
+     * Server instance (that is lazily required)
+     */
+    static app: express.Application;
+
+    /**
+     * Expose the RedisClient factory.
+     */
+    static redis: redis.RedisClient;
+
+    /**
+     * Create a new `Queue`.
+     */
+    static createQueue(options?: kue.QueueOptions): Queue;
+
+    /**
+     * Store workers
+     */
+    static workers: any[];
   }
 
-  interface Redis {
-    configureFactory(options: Object, queue: Queue): void;
-    createClient(): redis.RedisClient;
-    createClientFactory(options: Object): redis.RedisClient;
-    client(): redis.RedisClient;
-    pubsubClient(): redis.RedisClient;
-    reset(): void;
-  }
+  // module Queue {
+  //   var Job: typeof Job;
+  // }
 
-  interface TestMode {
-    jobs: Job[];
-    enter(): void;
-    exit(): void;
-    clear(): void;
-  }
-
-  export var app: express.Application;
-  export var redis: Redis;
-  export var workers: Worker[];
-
-  export function createQueue(options?: Object): Queue;
+  var kue: typeof Queue;
+  export = kue;
 }
