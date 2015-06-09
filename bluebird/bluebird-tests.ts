@@ -32,6 +32,7 @@ var insanity: any;
 
 interface Foo {
 	foo(): string;
+	fooCallback(arg1: string, callback: (err: Error, value: string) => void): void;
 }
 interface Bar {
 	bar(): string;
@@ -626,6 +627,15 @@ func = Promise.promisify(f, obj);
 
 obj = Promise.promisifyAll(obj);
 anyProm = Promise.fromNode(callback => nodeCallbackFunc(callback));
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+var object: Foo;
+Promise.fromNode<string>(function(callback: (err: Error, value: string) => void) {
+	object.fooCallback("firstArgument", callback);
+}).then(function(result: string) {
+	console.log(result);
+})
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

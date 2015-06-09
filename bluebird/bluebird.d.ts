@@ -424,6 +424,18 @@ declare class Promise<R> implements Promise.Thenable<R>, Promise.Inspection<R> {
 	static fromNode(resolver: (callback: (err: any, result: any) => void) => void): Promise<any>;
 
 	/**
+	 * Returns a promise that is resolved by a node style callback function. This is the most fitting way to do on the fly promisification when libraries don't expose classes for automatic promisification by promisifyAll.
+	 *
+	 * The resolver function is passed a callback that expects to be called back according to error-first node conventions.
+	 */
+	static fromNode(resolver: (callback: (err: Error) => void) => void): Promise<void>;
+	static fromNode<A1>(resolver: (callback: (err: Error, arg1: A1) => void) => void): Promise<A1>;
+	static fromNode<A1, A2>(resolver: (callback: (err: Error, arg1: A1, arg2: A2) => void) => void): Promise<[A1, A2]>;
+	static fromNode<A1, A2, A3>(resolver: (callback: (err: Error, arg1: A1, arg2: A2, arg3: A3) => void) => void): Promise<[A1, A2, A3]>;
+	static fromNode<A1, A2, A3, A4>(resolver: (callback: (err: Error, arg1: A1, arg2: A2, arg3: A3, arg4: A4) => void) => void): Promise<[A1, A2, A3, A4]>;
+	static fromNode<A1, A2, A3, A4, A5>(resolver: (callback: (err: Error, arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5) => void) => void): Promise<[A1, A2, A3, A4, A5]>;
+
+	/**
 	 * Returns a function that can use `yield` to run asynchronous code synchronously. This feature requires the support of generators which are drafted in the next version of the language. Node version greater than `0.11.2` is required and needs to be executed with the `--harmony-generators` (or `--harmony`) command-line switch.
 	 */
 	// TODO fix coroutine GeneratorFunction
