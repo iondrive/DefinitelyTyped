@@ -44,13 +44,13 @@ job.log('$%d sent to %s', 123, 'Bob');
 
 job.progress(6, 10);
 
-var job = queue.create('video conversion', {
+var videoJob = queue.create('video conversion', {
     title: 'converting loki\'s to avi'
   , user: 1
   , frames: 200
 });
 
-job.on('complete', function(result){
+videoJob.on('complete', function(result){
   console.log('Job completed with data ', result);
 
 }).on('failed attempt', function(errorMessage, doneAttempts){
@@ -60,7 +60,7 @@ job.on('complete', function(result){
   console.log('Job failed');
 
 }).on('progress', function(progress, data){
-  console.log('\r  job #' + job.id + ' ' + progress + '% complete with data ', data );
+  console.log('\r  job #' + videoJob.id + ' ' + progress + '% complete with data ', data );
 
 });
 
@@ -95,7 +95,7 @@ queue.process<Email>('email', function(job, done){
 
 function isValidEmail(address: string): boolean { return true; }
 
-function sendEmail(address: string, done: kue.ErrBack) {
+function sendEmail(address: string, done: (err?: Error) => void) {
   if(!isValidEmail(address)) {
     //done('invalid to address') is possible but discouraged
     return done(new Error('invalid to address'));
@@ -108,7 +108,7 @@ queue.process('email', 20, function(job, done){
   // ...
 });
 
-queue.process('email', function(job: any, ctx: kue.Context, done: kue.ErrBack){
+queue.process('email', function(job: any, ctx: kue.Context, done: (err?: Error) => void){
   ctx.pause( 5000, function(err){
     console.log("Worker is paused... ");
     setTimeout( function(){ ctx.resume(); }, 10000 );
