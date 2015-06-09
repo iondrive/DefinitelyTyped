@@ -239,8 +239,8 @@ declare module 'kue' {
     /**
      * Create a `Job` with the given `type` and `data`.
      */
-    create<T>(type: string, data?: any): Job<T>;
-    createJob<T>(type: string, data?: any): Job<T>;
+    create<T>(type: string, data?: T): Job<T>;
+    createJob<T>(type: string, data?: T): Job<T>;
 
     /**
      * Proxy to auto-subscribe to events.
