@@ -3,7 +3,7 @@
 // Definitions by: Marcel Buesing <https://github.com/marcelbuesing>
 // Definitions: https://github.com/borisyankov/DefinitelyTyped
 
-/// <reference path="../es6-promise/es6-promise.d.ts"/>
+/// <reference path="../bluebird/bluebird.d.ts"/>
 
 declare module Axios {
 
@@ -82,7 +82,7 @@ declare module Axios {
   }
 
   /**
-   * <T> - expected response type, 
+   * <T> - expected response type,
    * <U> - request body data type
    */
   interface AxiosXHR<T> {
@@ -112,11 +112,25 @@ declare module Axios {
       config: AxiosXHRConfig<T>;
   }
 
+  interface AxiousRequest {
+    use<T>(callback: (config: AxiosXHRConfig<T>) => void, error: (err: Error) => any): void;
+  }
+
+  interface AxiousResponse {
+    use<T>(callback: (config: AxiosXHR<T>) => void, error: (err: string) => Error): void;
+  }
+
+  interface AxiousInterceptors {
+    request: AxiousRequest;
+    response: AxiousResponse;
+  }
+
   /**
-   * <T> - expected response type, 
+   * <T> - expected response type,
    * <U> - request body data type
    */
   interface AxiosStatic {
+    interceptors: AxiousInterceptors;
 
     <T>(config: AxiosXHRConfig<T>): Promise<AxiosXHR<T>>;
 
