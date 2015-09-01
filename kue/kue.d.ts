@@ -1,7 +1,9 @@
+/// <reference path="../node/node.d.ts" />
 /// <reference path="../express/express.d.ts" />
 /// <reference path="../redis/redis.d.ts" />
 
 declare module 'kue' {
+  import events = require('events');
   import express = require('express');
   import redis = require('redis');
 
@@ -40,10 +42,32 @@ declare module 'kue' {
       (attempts: number, delay: number): number;
     }
 
+    interface TestMode {
+      /**
+       *   Array of jobs added to the queue
+       */
+      jobs: Queue.Job<any>[],
+
+      /**
+       *   Enable test mode.
+       */
+      enter(): void;
+
+      /**
+       *   Disable test mode.
+       */
+      exit(): void;
+
+      /**
+       *   Clear the array of queued jobs
+       */
+      clear(): void;
+    }
+
     /**
      * Expose `Job`.
      */
-    class Job<T> {
+    class Job<T> extends events.EventEmitter {
       id: string;
       data: T;
       result: any;
@@ -52,8 +76,6 @@ declare module 'kue' {
        * Initialize a new `Job` with the given `type` and `data`.
        */
       constructor(type: string, data: T);
-
-      on(event: string, callback: (...args: any[]) => void): Job<T>;
 
       /**
        * Return JSON-friendly object.
@@ -229,7 +251,26 @@ declare module 'kue' {
     }
   }
 
-  class Queue {
+  class Worker<T> extends events.EventEmitter {
+    queue: Queue;
+    type: string;
+    client: redis.RedisClient;
+    job: Queue.Job<T>;
+
+    constructor(queue: Queue, type: string);
+    start(fn: Function): Worker<T>;
+    error(err: Error, job: Queue.Job<T>): Worker<T>;
+    failed(job: Queue.Job<T>, theErr: Object, fn?: Function): Worker<T>;
+    process(job: Queue.Job<T>, fn: Function): Worker<T>;
+    private zpop(key: string, fn: Function): void;
+    private getJob(fn: Function): void;
+    idle(): Worker<T>;
+    shutdown(timeout: number, fn: Function): void;
+    emitJobEvent(event: Object, job: Queue.Job<T>, arg1: any, arg2: any): void;
+    resume(): boolean;
+  }
+
+  class Queue extends events.EventEmitter {
     /**
      * Initialize a new job `Queue`.
      */
@@ -355,27 +396,7 @@ declare module 'kue' {
     /**
      * Test mode for convenience in test suites
      */
-    testMode: {
-      /**
-       *   Array of jobs added to the queue
-       */
-      jobs: Queue.Job<any>[],
-
-      /**
-       *   Enable test mode.
-       */
-      enter(): void;
-
-      /**
-       *   Disable test mode.
-       */
-      exit(): void;
-
-      /**
-       *   Clear the array of queued jobs
-       */
-      clear(): void;
-    };
+    testMode: Queue.TestMode;
 
     /**
      * Library version.
@@ -400,7 +421,7 @@ declare module 'kue' {
     /**
      * Store workers
      */
-    static workers: any[];
+    static workers: Worker<any>[];
   }
 
   export = Queue;
