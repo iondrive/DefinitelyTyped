@@ -1,7 +1,7 @@
 /// <reference path="../request/request.d.ts" />
 
 declare module 'nano' {
-  import request = require('request');  
+  import request = require('request');
 
   module nano {
     interface NanoOptions {
@@ -11,6 +11,7 @@ declare module 'nano' {
       follow?: Function;
       log?: Function;
       parseUrl?: boolean;
+      searchVendor?: string;
     }
 
     interface NanoRequestOptions {
